@@ -20,12 +20,12 @@ func unhex(s string) []byte {
 // See [aegis] A.2.1.
 func TestUpdate128L(t *testing.T) {
 	for _, tc := range []struct {
-		before [8]uint128
+		before state128L
 		m      [2]uint128
-		after  [8]uint128
+		after  state128L
 	}{
 		{
-			before: [8]uint128{
+			before: state128L{
 				{0x9b7e60b24cc873ea, 0x894ecc07911049a3},
 				{0x330be08f35300faa, 0x2ebf9a7b0d274658},
 				{0x7bbd5bd2b049f7b9, 0xb515cf26fbe7756c},
@@ -39,7 +39,7 @@ func TestUpdate128L(t *testing.T) {
 				{0x033e6975b9481687, 0x9e42917650955aa0},
 				{0x033e6975b9481687, 0x9e42917650955aa0},
 			},
-			after: [8]uint128{
+			after: state128L{
 				{0x596ab773e4433ca0, 0x127c73f60536769d},
 				{0x790394041a3d26ab, 0x697bde865014652d},
 				{0x38cf49e4b65248ac, 0xd533041b64dd0611},
@@ -141,6 +141,103 @@ func TestVectors128L(t *testing.T) {
 	}
 }
 
+// TestUpdate256 tests AESIS-256's Update routine.
+//
+// See [aegis] A.3.1.
+func TestUpdate256(t *testing.T) {
+	for _, tc := range []struct {
+		before state256
+		m      uint128
+		after  state256
+	}{
+		{
+			before: state256{
+				{0x1fa1207ed76c86f2, 0xc4bb40e8b395b43e},
+				{0xb44c375e6c1e1978, 0xdb64bcd12e9e332f},
+				{0x0dab84bfa9f02264, 0x32ff630f233d4e5b},
+				{0xd7ef65c9b93e8ee6, 0x0c75161407b066e7},
+				{0xa760bb3da073fbd9, 0x2bdc24734b1f56fb},
+				{0xa828a18d6a964497, 0xac6e7e53c5f55c73},
+			},
+			m: uint128{0xb165617ed04ab738, 0xafb2612c6d18a1ec},
+			after: state256{
+				{0xe6bc643bae82dfa3, 0xd991b1b323839dcd},
+				{0x648578232ba0f2f0, 0xa3677f617dc052c3},
+				{0xea788e0e572044a4, 0x6059212dd007a789},
+				{0x2f1498ae19b80da1, 0x3fba698f088a8590},
+				{0xa54c2ee95e8c2a2c, 0x3dae2ec743ae6b86},
+				{0xa3240fceb68e32d5, 0xd114df1b5363ab67},
+			},
+		},
+	} {
+		s := tc.before
+		update256(&s, tc.m)
+		if s != tc.after {
+			t.Fatalf("expected %#x, got %#x", tc.after, s)
+		}
+	}
+}
+
+// TestVectors256 tests AEGIS-256's Encrypt routine.
+//
+// See [aegis] A.3.
+func TestVectors256(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		key            []byte
+		nonce          []byte
+		additionalData []byte
+		plaintext      []byte
+		ciphertext     []byte // ciphertext || tag
+	}{
+		{
+			name:       "A.3.2",
+			key:        unhex("0000000000000000000000000000000000000000000000000000000000000000"),
+			nonce:      unhex("0000000000000000000000000000000000000000000000000000000000000000"),
+			plaintext:  unhex("00000000000000000000000000000000"),
+			ciphertext: unhex("b98f03a947807713d75a4fff9fc277a6478f3b50dc478ef7d5cf2d0f7cc13180"),
+		},
+		{
+			name:       "A.3.3",
+			key:        unhex("0000000000000000000000000000000000000000000000000000000000000000"),
+			nonce:      unhex("0000000000000000000000000000000000000000000000000000000000000000"),
+			ciphertext: unhex("f7a0878f68bd083e8065354071fc27c3"),
+		},
+		{
+			name:           "A.3.4",
+			key:            unhex("1001000000000000000000000000000000000000000000000000000000000000"),
+			nonce:          unhex("1000020000000000000000000000000000000000000000000000000000000000"),
+			additionalData: unhex("0001020304050607"),
+			plaintext:      unhex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"),
+			ciphertext:     unhex("f373079ed84b2709faee373584585d60accd191db310ef5d8b11833df9dec7118d86f91ee606e9ff26a01b64ccbdd91d"),
+		},
+		{
+			name:           "A.3.5",
+			key:            unhex("1001000000000000000000000000000000000000000000000000000000000000"),
+			nonce:          unhex("1000020000000000000000000000000000000000000000000000000000000000"),
+			additionalData: unhex("0001020304050607"),
+			plaintext:      unhex("000102030405060708090a0b0c0d"),
+			ciphertext:     unhex("f373079ed84b2709faee37358458c60b9c2d33ceb058f96e6dd03c215652"),
+		},
+	} {
+		aead, err := New(tc.key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ciphertext := aead.Seal(nil, tc.nonce, tc.plaintext, tc.additionalData)
+		if !bytes.Equal(ciphertext, tc.ciphertext) {
+			t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.ciphertext, ciphertext)
+		}
+		plaintext, err := aead.Open(nil, tc.nonce, tc.ciphertext, tc.additionalData)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(plaintext, tc.plaintext) {
+			t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.plaintext, plaintext)
+		}
+	}
+}
+
 type config struct {
 	keySize   int
 	nonceSize int
@@ -153,10 +250,19 @@ var cfg128L = config{
 	blockSize: BlockSize128L,
 }
 
+var cfg256 = config{
+	keySize:   KeySize256,
+	nonceSize: NonceSize256,
+	blockSize: BlockSize256,
+}
+
 // TestRoundTrip tests encrypting and decrypting data.
 func TestRoundTrip(t *testing.T) {
 	t.Run("AEGIS-128L", func(t *testing.T) {
 		testRoundTrip(t, cfg128L)
+	})
+	t.Run("AEGIS-256", func(t *testing.T) {
+		testRoundTrip(t, cfg256)
 	})
 }
 
@@ -200,6 +306,9 @@ func testRoundTrip(t *testing.T, cfg config) {
 func TestInPlace(t *testing.T) {
 	t.Run("AEGIS-128L", func(t *testing.T) {
 		testInPlace(t, cfg128L)
+	})
+	t.Run("AEGIS-256", func(t *testing.T) {
+		testInPlace(t, cfg256)
 	})
 }
 
