@@ -369,3 +369,77 @@ func TestNew(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkSeal1K_128l(b *testing.B) {
+	benchmarkSeal(b, KeySize128L, NonceSize128L, make([]byte, 1024))
+}
+
+func BenchmarkOpen1K_128l(b *testing.B) {
+	benchmarkOpen(b, KeySize128L, NonceSize128L, make([]byte, 1024))
+}
+
+func BenchmarkSeal8K_128l(b *testing.B) {
+	benchmarkSeal(b, KeySize128L, NonceSize128L, make([]byte, 8*1024))
+}
+
+func BenchmarkOpen8K_128l(b *testing.B) {
+	benchmarkOpen(b, KeySize128L, NonceSize128L, make([]byte, 8*1024))
+}
+
+func BenchmarkSeal1K_256(b *testing.B) {
+	benchmarkSeal(b, KeySize256, NonceSize256, make([]byte, 1024))
+}
+
+func BenchmarkOpen1K_256(b *testing.B) {
+	benchmarkOpen(b, KeySize256, NonceSize256, make([]byte, 1024))
+}
+
+func BenchmarkSeal8K_256(b *testing.B) {
+	benchmarkSeal(b, KeySize256, NonceSize256, make([]byte, 8*1024))
+}
+
+func BenchmarkOpen8K_256(b *testing.B) {
+	benchmarkOpen(b, KeySize256, NonceSize256, make([]byte, 8*1024))
+}
+
+func benchmarkSeal(b *testing.B, keySize, nonceSize int, buf []byte) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(buf)))
+
+	key := make([]byte, keySize)
+	nonce := make([]byte, nonceSize)
+	ad := make([]byte, 13)
+	aead, err := New(key)
+	if err != nil {
+		b.Fatal(err)
+	}
+	var out []byte
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		out = aead.Seal(out[:0], nonce, buf, ad)
+	}
+}
+
+func benchmarkOpen(b *testing.B, keySize, nonceSize int, buf []byte) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(buf)))
+
+	key := make([]byte, keySize)
+	nonce := make([]byte, nonceSize)
+	ad := make([]byte, 13)
+	aead, err := New(key)
+	if err != nil {
+		b.Fatal(err)
+	}
+	var out []byte
+	out = aead.Seal(out[:0], nonce, buf, ad)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := aead.Open(buf[:0], nonce, out, ad)
+		if err != nil {
+			b.Errorf("Open: %v", err)
+		}
+	}
+}
