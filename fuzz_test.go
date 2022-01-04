@@ -75,6 +75,12 @@ func testFuzz(t *testing.T, keySize, nonceSize int) {
 		wantCt := refAead.Seal(nil, nonce, plaintext, nil)
 		gotCt := gotAead.Seal(nil, nonce, plaintext, nil)
 		if !bytes.Equal(wantCt, gotCt) {
+			for i, c := range gotCt {
+				if c != wantCt[i] {
+					t.Fatalf("bad value at index %d of %d (%d): %#x",
+						i, len(wantCt), len(wantCt)-i, c)
+				}
+			}
 			t.Fatalf("expected %#x, got %#x", wantCt, gotCt)
 		}
 

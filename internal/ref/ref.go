@@ -123,12 +123,16 @@ func (a *aead) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, erro
 	if len(additionalData) > 0 {
 		ad = (*C.uchar)(&additionalData[0])
 	}
+	var _out *C.uchar
+	if len(out) > 0 {
+		_out = (*C.uchar)(&out[0])
+	}
 	mlen := C.ulonglong(len(out))
 	var r C.int
 	switch a.impl {
 	case aegis128l:
 		r = C.crypto_aead_decrypt_128l(
-			(*C.uchar)(&out[0]),
+			_out,
 			&mlen,
 			nil,
 			(*C.uchar)(&ciphertext[0]),
@@ -140,7 +144,7 @@ func (a *aead) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, erro
 		)
 	case aegis256:
 		r = C.crypto_aead_decrypt_256(
-			(*C.uchar)(&out[0]),
+			_out,
 			&mlen,
 			nil,
 			(*C.uchar)(&ciphertext[0]),

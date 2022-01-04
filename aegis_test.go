@@ -21,40 +21,42 @@ func unhex(s string) []byte {
 func TestUpdate128L(t *testing.T) {
 	for _, tc := range []struct {
 		before state128L
-		m      [2]uint128
+		m      [32]byte
 		after  state128L
 	}{
 		{
 			before: state128L{
-				{0x9b7e60b24cc873ea, 0x894ecc07911049a3},
-				{0x330be08f35300faa, 0x2ebf9a7b0d274658},
-				{0x7bbd5bd2b049f7b9, 0xb515cf26fbe7756c},
-				{0xc35a00f55ea86c38, 0x86ec5e928f87db18},
-				{0x9ebccafce87cab44, 0x6396c4334592c91f},
-				{0x58d83e31f256371e, 0x60fc6bb257114601},
-				{0x1639b56ea322c885, 0x68a176585bc915de},
-				{0x640818ffb57dc0fb, 0xc2e72ae93457e39a},
+				uint128{0x9b7e60b24cc873ea, 0x894ecc07911049a3},
+				uint128{0x330be08f35300faa, 0x2ebf9a7b0d274658},
+				uint128{0x7bbd5bd2b049f7b9, 0xb515cf26fbe7756c},
+				uint128{0xc35a00f55ea86c38, 0x86ec5e928f87db18},
+				uint128{0x9ebccafce87cab44, 0x6396c4334592c91f},
+				uint128{0x58d83e31f256371e, 0x60fc6bb257114601},
+				uint128{0x1639b56ea322c885, 0x68a176585bc915de},
+				uint128{0x640818ffb57dc0fb, 0xc2e72ae93457e39a},
 			},
-			m: [2]uint128{
-				{0x033e6975b9481687, 0x9e42917650955aa0},
-				{0x033e6975b9481687, 0x9e42917650955aa0},
+			m: [32]byte{
+				0x03, 0x3e, 0x69, 0x75, 0xb9, 0x48, 0x16, 0x87, 0x9e, 0x42,
+				0x91, 0x76, 0x50, 0x95, 0x5a, 0xa0, 0x03, 0x3e, 0x69, 0x75,
+				0xb9, 0x48, 0x16, 0x87, 0x9e, 0x42, 0x91, 0x76, 0x50, 0x95,
+				0x5a, 0xa0,
 			},
 			after: state128L{
-				{0x596ab773e4433ca0, 0x127c73f60536769d},
-				{0x790394041a3d26ab, 0x697bde865014652d},
-				{0x38cf49e4b65248ac, 0xd533041b64dd0611},
-				{0x16d8e58748f437bf, 0xff1797f780337cee},
-				{0x69761320f7dd738b, 0x281cc9f335ac2f5a},
-				{0xa21746bb193a569e, 0x331e1aa985d0d729},
-				{0x09d714e6fcf9177a, 0x8ed1cde7e3d259a6},
-				{0x61279ba73167f0ab, 0x76f0a11bf203bdff},
+				uint128{0x596ab773e4433ca0, 0x127c73f60536769d},
+				uint128{0x790394041a3d26ab, 0x697bde865014652d},
+				uint128{0x38cf49e4b65248ac, 0xd533041b64dd0611},
+				uint128{0x16d8e58748f437bf, 0xff1797f780337cee},
+				uint128{0x69761320f7dd738b, 0x281cc9f335ac2f5a},
+				uint128{0xa21746bb193a569e, 0x331e1aa985d0d729},
+				uint128{0x09d714e6fcf9177a, 0x8ed1cde7e3d259a6},
+				uint128{0x61279ba73167f0ab, 0x76f0a11bf203bdff},
 			},
 		},
 	} {
 		s := tc.before
-		update128L(&s, tc.m[0], tc.m[1])
+		update128L(&s, &tc.m)
 		if s != tc.after {
-			t.Fatalf("expected %#x, got %#x", tc.after, s)
+			t.Errorf("expected %#x, got %#x", tc.after, s)
 		}
 	}
 }
@@ -133,7 +135,7 @@ func TestVectors128L(t *testing.T) {
 		}
 		plaintext, err := aead.Open(nil, tc.nonce, tc.ciphertext, tc.additionalData)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%s: %v", tc.name, err)
 		}
 		if !bytes.Equal(plaintext, tc.plaintext) {
 			t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.plaintext, plaintext)
@@ -147,31 +149,31 @@ func TestVectors128L(t *testing.T) {
 func TestUpdate256(t *testing.T) {
 	for _, tc := range []struct {
 		before state256
-		m      uint128
+		m      [16]byte
 		after  state256
 	}{
 		{
 			before: state256{
-				{0x1fa1207ed76c86f2, 0xc4bb40e8b395b43e},
-				{0xb44c375e6c1e1978, 0xdb64bcd12e9e332f},
-				{0x0dab84bfa9f02264, 0x32ff630f233d4e5b},
-				{0xd7ef65c9b93e8ee6, 0x0c75161407b066e7},
-				{0xa760bb3da073fbd9, 0x2bdc24734b1f56fb},
-				{0xa828a18d6a964497, 0xac6e7e53c5f55c73},
+				uint128{0x1fa1207ed76c86f2, 0xc4bb40e8b395b43e},
+				uint128{0xb44c375e6c1e1978, 0xdb64bcd12e9e332f},
+				uint128{0x0dab84bfa9f02264, 0x32ff630f233d4e5b},
+				uint128{0xd7ef65c9b93e8ee6, 0x0c75161407b066e7},
+				uint128{0xa760bb3da073fbd9, 0x2bdc24734b1f56fb},
+				uint128{0xa828a18d6a964497, 0xac6e7e53c5f55c73},
 			},
-			m: uint128{0xb165617ed04ab738, 0xafb2612c6d18a1ec},
+			m: [16]byte{0xb1, 0x65, 0x61, 0x7e, 0xd0, 0x4a, 0xb7, 0x38, 0xaf, 0xb2, 0x61, 0x2c, 0x6d, 0x18, 0xa1, 0xec},
 			after: state256{
-				{0xe6bc643bae82dfa3, 0xd991b1b323839dcd},
-				{0x648578232ba0f2f0, 0xa3677f617dc052c3},
-				{0xea788e0e572044a4, 0x6059212dd007a789},
-				{0x2f1498ae19b80da1, 0x3fba698f088a8590},
-				{0xa54c2ee95e8c2a2c, 0x3dae2ec743ae6b86},
-				{0xa3240fceb68e32d5, 0xd114df1b5363ab67},
+				uint128{0xe6bc643bae82dfa3, 0xd991b1b323839dcd},
+				uint128{0x648578232ba0f2f0, 0xa3677f617dc052c3},
+				uint128{0xea788e0e572044a4, 0x6059212dd007a789},
+				uint128{0x2f1498ae19b80da1, 0x3fba698f088a8590},
+				uint128{0xa54c2ee95e8c2a2c, 0x3dae2ec743ae6b86},
+				uint128{0xa3240fceb68e32d5, 0xd114df1b5363ab67},
 			},
 		},
 	} {
 		s := tc.before
-		update256(&s, tc.m)
+		update256(&s, &tc.m)
 		if s != tc.after {
 			t.Fatalf("expected %#x, got %#x", tc.after, s)
 		}
@@ -294,10 +296,10 @@ func testRoundTrip(t *testing.T, cfg config) {
 		ciphertext := aead.Seal(nil, nonce, plaintext, additionalData)
 		got, err := aead.Open(nil, nonce, ciphertext, additionalData)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%d: %v", i, err)
 		}
 		if !bytes.Equal(got, plaintext) {
-			t.Fatalf("expected %#x, got %#x", plaintext, got)
+			t.Fatalf("%d: expected %#x, got %#x", i, plaintext, got)
 		}
 	}
 }
@@ -357,11 +359,12 @@ func TestNew(t *testing.T) {
 		ok   bool
 	}{
 		{0, false},
-		{15, false},
-		{17, false},
-		{31, false},
-		{33, false},
+		{KeySize128L + 1, false},
+		{KeySize128L - 1, false},
 		{KeySize128L, true},
+		{KeySize256 + 1, false},
+		{KeySize256 - 1, false},
+		{KeySize256, true},
 	} {
 		_, err := New(make([]byte, tc.size))
 		if tc.ok != (err == nil) {
@@ -370,19 +373,19 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func BenchmarkSeal1K_128l(b *testing.B) {
+func BenchmarkSeal1K_128L(b *testing.B) {
 	benchmarkSeal(b, KeySize128L, NonceSize128L, make([]byte, 1024))
 }
 
-func BenchmarkOpen1K_128l(b *testing.B) {
+func BenchmarkOpen1K_128L(b *testing.B) {
 	benchmarkOpen(b, KeySize128L, NonceSize128L, make([]byte, 1024))
 }
 
-func BenchmarkSeal8K_128l(b *testing.B) {
+func BenchmarkSeal8K_128L(b *testing.B) {
 	benchmarkSeal(b, KeySize128L, NonceSize128L, make([]byte, 8*1024))
 }
 
-func BenchmarkOpen8K_128l(b *testing.B) {
+func BenchmarkOpen8K_128L(b *testing.B) {
 	benchmarkOpen(b, KeySize128L, NonceSize128L, make([]byte, 8*1024))
 }
 
