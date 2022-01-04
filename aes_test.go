@@ -1,26 +1,37 @@
 package aegis
 
-import "testing"
+import (
+	"testing"
+)
 
 // TestAESRound tests the AESRound routine.
 //
 // See [aegis] A.1.
 func TestAESRound(t *testing.T) {
 	for _, tc := range []struct {
-		in  uint128
-		rk  uint128
-		out uint128
+		in  [16]byte
+		rk  [16]byte
+		out [16]byte
 	}{
 		{
-			in:  uint128{0x0001020304050607, 0x08090a0b0c0d0e0f},
-			rk:  uint128{0x1011121314151617, 0x18191a1b1c1d1e1f},
-			out: uint128{0x7a7b4e5638782546, 0xa8c0477a3b813f43},
+			in: [16]byte{
+				0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+				0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+			},
+			rk: [16]byte{
+				0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+				0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+			},
+			out: [16]byte{
+				0x7a, 0x7b, 0x4e, 0x56, 0x38, 0x78, 0x25, 0x46,
+				0xa8, 0xc0, 0x47, 0x7a, 0x3b, 0x81, 0x3f, 0x43,
+			},
 		},
 	} {
-		out := aesRound(tc.in, tc.rk)
+		var out [16]byte
+		aesRound(&out, &tc.in, &tc.rk)
 		if out != tc.out {
-			t.Fatalf("expected (%#0.16x, %#0.16x), got (%#0.16x, %#0.16x)",
-				tc.out.hi, tc.out.hi, out.hi, out.lo)
+			t.Fatalf("expected %0.16x, got %0.16x", tc.out, out)
 		}
 	}
 }

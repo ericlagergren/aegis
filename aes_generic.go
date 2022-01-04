@@ -36,13 +36,13 @@
 
 package aegis
 
-// aesRound performs a single AES round.
+// aesRoundGeneric performs a single AES round.
 //
 // Specifically, aesRound performs SubBytes, ShiftRows,
 // MixColums, and AddRoundKey.
 //
-// aesRound is borrowed from crypto/aes.encryptBlockGo.
-func aesRound(in, rk uint128) uint128 {
+// aesRoundGeneric is borrowed from crypto/aes.encryptBlockGo.
+func aesRoundGeneric(in, rk uint128) uint128 {
 	s0 := uint32(in.hi >> 32)
 	s1 := uint32(in.hi)
 	s2 := uint32(in.lo >> 32)
