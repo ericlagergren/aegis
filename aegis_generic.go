@@ -3,6 +3,8 @@ package aegis
 import (
 	"encoding/binary"
 	"math/bits"
+
+	"github.com/ericlagergren/aegis/internal/subtle"
 )
 
 type state128L struct {
@@ -30,7 +32,7 @@ func seal128LGeneric(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, pl
 		len(additionalData)*8, len(plaintext)*8)
 }
 
-func open128LGeneric(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, expectedTag *[TagSize128L]byte, out, ciphertext, additionalData []byte) {
+func open128LGeneric(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, ciphertext, tag, additionalData []byte) bool {
 	var s state128L
 
 	// Init(key, nonce)
@@ -51,7 +53,10 @@ func open128LGeneric(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, expecte
 	decryptBlocks128L(&s, out, ciphertext)
 
 	// expected_tag = Finalize(|ad|, |msg|)
-	finalize128L(&s, expectedTag[:], len(additionalData)*8, len(out)*8)
+	expectedTag := make([]byte, TagSize128L)
+	finalize128L(&s, expectedTag, len(additionalData)*8, len(out)*8)
+
+	return subtle.ConstantTimeCompare(expectedTag, tag) == 1
 }
 
 func init128L(s *state128L, key, nonce uint128) {
@@ -297,7 +302,7 @@ func seal256Generic(key *[KeySize256]byte, nonce *[NonceSize256]byte, out, plain
 		len(additionalData)*8, len(plaintext)*8)
 }
 
-func open256Generic(key *[KeySize256]byte, nonce *[NonceSize256]byte, expectedTag *[TagSize256]byte, out, ciphertext, additionalData []byte) {
+func open256Generic(key *[KeySize256]byte, nonce *[NonceSize256]byte, out, ciphertext, tag, additionalData []byte) bool {
 	var s state256
 
 	// Init(key, nonce)
@@ -320,7 +325,10 @@ func open256Generic(key *[KeySize256]byte, nonce *[NonceSize256]byte, expectedTa
 	decryptBlocks256(&s, out, ciphertext)
 
 	// expected_tag = Finalize(|ad|, |msg|)
-	finalize256(&s, expectedTag[:], len(additionalData)*8, len(out)*8)
+	expectedTag := make([]byte, TagSize256)
+	finalize256(&s, expectedTag, len(additionalData)*8, len(out)*8)
+
+	return subtle.ConstantTimeCompare(expectedTag, tag) == 1
 }
 
 func init256(s *state256, k0, k1, n0, n1 uint128) {

@@ -125,21 +125,23 @@ func TestVectors128L(t *testing.T) {
 			},
 		},
 	} {
-		aead, err := New(tc.key)
-		if err != nil {
-			t.Fatal(err)
-		}
-		ciphertext := aead.Seal(nil, tc.nonce, tc.plaintext, tc.additionalData)
-		if !bytes.Equal(ciphertext, tc.ciphertext) {
-			t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.ciphertext, ciphertext)
-		}
-		plaintext, err := aead.Open(nil, tc.nonce, tc.ciphertext, tc.additionalData)
-		if err != nil {
-			t.Fatalf("%s: %v", tc.name, err)
-		}
-		if !bytes.Equal(plaintext, tc.plaintext) {
-			t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.plaintext, plaintext)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			aead, err := New(tc.key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ciphertext := aead.Seal(nil, tc.nonce, tc.plaintext, tc.additionalData)
+			if !bytes.Equal(ciphertext, tc.ciphertext) {
+				t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.ciphertext, ciphertext)
+			}
+			plaintext, err := aead.Open(nil, tc.nonce, tc.ciphertext, tc.additionalData)
+			if err != nil {
+				t.Fatalf("%s: %v", tc.name, err)
+			}
+			if !bytes.Equal(plaintext, tc.plaintext) {
+				t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.plaintext, plaintext)
+			}
+		})
 	}
 }
 
@@ -222,21 +224,23 @@ func TestVectors256(t *testing.T) {
 			ciphertext:     unhex("f373079ed84b2709faee37358458c60b9c2d33ceb058f96e6dd03c215652"),
 		},
 	} {
-		aead, err := New(tc.key)
-		if err != nil {
-			t.Fatal(err)
-		}
-		ciphertext := aead.Seal(nil, tc.nonce, tc.plaintext, tc.additionalData)
-		if !bytes.Equal(ciphertext, tc.ciphertext) {
-			t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.ciphertext, ciphertext)
-		}
-		plaintext, err := aead.Open(nil, tc.nonce, tc.ciphertext, tc.additionalData)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(plaintext, tc.plaintext) {
-			t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.plaintext, plaintext)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			aead, err := New(tc.key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ciphertext := aead.Seal(nil, tc.nonce, tc.plaintext, tc.additionalData)
+			if !bytes.Equal(ciphertext, tc.ciphertext) {
+				t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.ciphertext, ciphertext)
+			}
+			plaintext, err := aead.Open(nil, tc.nonce, tc.ciphertext, tc.additionalData)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(plaintext, tc.plaintext) {
+				t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.plaintext, plaintext)
+			}
+		})
 	}
 }
 
@@ -373,6 +377,14 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func BenchmarkSeal16B_128L(b *testing.B) {
+	benchmarkSeal(b, KeySize128L, NonceSize128L, make([]byte, 16))
+}
+
+func BenchmarkOpen16B_128L(b *testing.B) {
+	benchmarkOpen(b, KeySize128L, NonceSize128L, make([]byte, 16))
+}
+
 func BenchmarkSeal1K_128L(b *testing.B) {
 	benchmarkSeal(b, KeySize128L, NonceSize128L, make([]byte, 1024))
 }
@@ -387,6 +399,14 @@ func BenchmarkSeal8K_128L(b *testing.B) {
 
 func BenchmarkOpen8K_128L(b *testing.B) {
 	benchmarkOpen(b, KeySize128L, NonceSize128L, make([]byte, 8*1024))
+}
+
+func BenchmarkSeal16B_256(b *testing.B) {
+	benchmarkSeal(b, KeySize256, NonceSize256, make([]byte, 16))
+}
+
+func BenchmarkOpen16B_256(b *testing.B) {
+	benchmarkOpen(b, KeySize256, NonceSize256, make([]byte, 16))
 }
 
 func BenchmarkSeal1K_256(b *testing.B) {

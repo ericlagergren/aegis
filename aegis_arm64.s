@@ -1,8 +1,26 @@
 //go:build gc && !purego
 
 #include "textflag.h"
+#include "go_asm.h"
 
 // Registers V{0..10} are reserved.
+// Register R1{2,3} is reserved.
+
+#ifdef GOOS_darwin
+#define PUSH_DIT() \
+	MOVD DIT, R12 \
+	MOVD $1, R13  \
+	MOVD R13, DIT
+
+#else
+#define PUSH_DIT()
+#endif
+
+#ifdef GOOS_darwin
+#define POP_DIT() MOVD R12, DIT
+#else
+#define POP_DIT()
+#endif
 
 // State registers.
 #define s0 V0
@@ -36,9 +54,9 @@ TEXT copy32<>(SB), NOSPLIT|NOFRAME, $0-0
 #define src_ptr R1
 #define len R3
 #define dst_ptr R8
-#define srcend R9
-#define dstend R10
-// Data use R{11..14}
+#define srcend R15
+#define dstend R26
+// Data use R2{1..4}
 
 	CBZ len, copy0
 
@@ -47,12 +65,12 @@ TEXT copy32<>(SB), NOSPLIT|NOFRAME, $0-0
 	BLE copy16
 
 	// Small copies: 17..32 bytes.
-	LDP (src_ptr), (R11, R12)
+	LDP (src_ptr), (R21, R22)
 	ADD src_ptr, len, srcend    // srcend points just past the last source byte
-	LDP -16(srcend), (R13, R14)
-	STP (R11, R12), (dst_ptr)
+	LDP -16(srcend), (R23, R24)
+	STP (R21, R22), (dst_ptr)
 	ADD dst_ptr, len, dstend    // dstend points just past the last destination byte
-	STP (R13, R14), -16(dstend)
+	STP (R23, R24), -16(dstend)
 	RET
 
 // Small copies: 1..16 bytes.
@@ -61,31 +79,31 @@ copy16:
 	ADD  dst_ptr, len, dstend // dstend points just past the last destination byte
 	CMP  $8, len
 	BLT  copy7
-	MOVD (src_ptr), R11
-	MOVD -8(srcend), R12
-	MOVD R11, (dst_ptr)
-	MOVD R12, -8(dstend)
+	MOVD (src_ptr), R21
+	MOVD -8(srcend), R22
+	MOVD R21, (dst_ptr)
+	MOVD R22, -8(dstend)
 	RET
 
 copy7:
 	TBZ   $2, len, copy3
-	MOVWU (src_ptr), R11
-	MOVWU -4(srcend), R12
-	MOVW  R11, (dst_ptr)
-	MOVW  R12, -4(dstend)
+	MOVWU (src_ptr), R21
+	MOVWU -4(srcend), R22
+	MOVW  R21, (dst_ptr)
+	MOVW  R22, -4(dstend)
 	RET
 
 copy3:
 	TBZ   $1, len, copy1
-	MOVHU (src_ptr), R11
-	MOVHU -2(srcend), R12
-	MOVH  R11, (dst_ptr)
-	MOVH  R12, -2(dstend)
+	MOVHU (src_ptr), R21
+	MOVHU -2(srcend), R22
+	MOVH  R21, (dst_ptr)
+	MOVH  R22, -2(dstend)
 	RET
 
 copy1:
-	MOVBU (src_ptr), R11
-	MOVB  R11, (dst_ptr)
+	MOVBU (src_ptr), R21
+	MOVBU R21, (dst_ptr)
 
 copy0:
 	RET
@@ -102,7 +120,7 @@ copy0:
 TEXT clear32<>(SB), NOSPLIT|NOFRAME, $0-0
 #define dst_ptr R8
 #define len R3
-#define dstend R9
+#define dstend R20
 
 	CBZ len, clear0
 
@@ -138,7 +156,7 @@ clear3:
 	RET
 
 clear1:
-	MOVB ZR, (dst_ptr)
+	MOVBU ZR, (dst_ptr)
 
 clear0:
 	RET
@@ -160,6 +178,17 @@ clear0:
 	AESE  zero.B16, in.B16       \
 	AESMC in.B16, in.B16         \
 	VEOR  rk.B16, in.B16, in.B16
+
+// CLEAR_STATE128L clears |s{0..7}|.
+#define CLEAR_STATE128L() \
+	VEOR s0.B16, s0.B16, s0.B16 \
+	VEOR s1.B16, s1.B16, s1.B16 \
+	VEOR s2.B16, s2.B16, s2.B16 \
+	VEOR s3.B16, s3.B16, s3.B16 \
+	VEOR s4.B16, s4.B16, s4.B16 \
+	VEOR s5.B16, s5.B16, s5.B16 \
+	VEOR s6.B16, s6.B16, s6.B16 \
+	VEOR s7.B16, s7.B16, s7.B16
 
 // UPDATE_STATE128L performs AEGIS-128L Update.
 //
@@ -206,8 +235,8 @@ clear0:
 	AESMC stmp1.B16, stmp1.B16              \
 	VEOR3 s0.B16, m0.B16, stmp1.B16, s0.B16
 
-// func update128L(s *state128L, m *[BlockSize128L]byte)
-TEXT ·update128L(SB), NOSPLIT, $0-16
+// func update128LAsm(s *state128L, m *[BlockSize128L]byte)
+TEXT ·update128LAsm(SB), NOSPLIT, $0-16
 #define s_ptr R0
 #define m_ptr R1
 #define m0 V30
@@ -242,8 +271,8 @@ TEXT ·update128L(SB), NOSPLIT, $0-16
 #undef m0
 #undef m1
 
-// func seal128L(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, plaintext, additionalData []byte)
-TEXT ·seal128L(SB), 0, $32-88
+// func seal128LAsm(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, plaintext, additionalData []byte)
+TEXT ·seal128LAsm(SB), 0, $32-88
 #define src_ptr R1
 #define dst_ptr R2
 #define remain R3
@@ -266,6 +295,7 @@ TEXT ·seal128L(SB), 0, $32-88
 #define t V21
 #define tag V22
 
+	PUSH_DIT()
 	INIT_ZERO()
 
 	MOVD out_base+16(FP), dst_ptr
@@ -414,7 +444,6 @@ encryptPartial:
 	MOVD stack_ptr, src_ptr                // read from stack_ptr
 	MOVD dst_ptr, stack_ptr                // write to dst_ptr
 	CALL copy32<>(SB)
-	MOVD src_ptr, stack_ptr                // reset stack_ptr
 	ADD  remain, dst_ptr
 
 finalize:
@@ -423,8 +452,8 @@ finalize:
 	MOVD plaintext_len+48(FP), pt_len
 	LSL  $3, ad_len
 	LSL  $3, pt_len
-	STP  (ad_len, pt_len), (stack_ptr)
-	VLD1 (stack_ptr), [t.B16]
+	VMOV ad_len, t.D[0]
+	VMOV pt_len, t.D[1]
 	VEOR s2.B16, t.B16, t.B16
 
 	// Repeat(7, Update(t, t))
@@ -442,6 +471,10 @@ finalize:
 	VEOR3 s5.B16, s6.B16, tag.B16, tag.B16
 
 	VST1 [tag.B16], (dst_ptr)
+
+done:
+	CLEAR_STATE128L()
+	POP_DIT()
 
 	RET
 
@@ -467,8 +500,8 @@ finalize:
 #undef t
 #undef tag
 
-// func open128L(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, expectedTag *[TagSize128L]byte, out, ciphertext, additionalData []byte)
-TEXT ·open128L(SB), NOSPLIT, $32-96
+// func open128LAsm(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, ciphertext, tag, additionalData []byte)
+TEXT ·open128LAsm(SB), NOSPLIT, $32-113
 #define src_ptr R1
 #define dst_ptr R2
 #define remain R3
@@ -477,6 +510,9 @@ TEXT ·open128L(SB), NOSPLIT, $32-96
 #define ad_len R6
 #define ct_len R7
 #define stack_ptr R8
+#define tag_ptr R9
+#define tag_lo R10
+#define tag_hi R11
 
 #define vkey V11
 #define vnonce V12
@@ -491,13 +527,15 @@ TEXT ·open128L(SB), NOSPLIT, $32-96
 #define v0 V21
 #define v1 V22
 #define t V23
-#define tag V24
-#define fix0 V25
-#define fix1 V26
+#define expectedTag V24
+#define gotTag V25
+#define fix0 V26
+#define fix1 V27
 
+	PUSH_DIT()
 	INIT_ZERO()
 
-	MOVD out_base+24(FP), dst_ptr
+	MOVD out_base+16(FP), dst_ptr
 
 	MOVD RSP, stack_ptr
 	SUB  $32, stack_ptr
@@ -548,10 +586,10 @@ initState:
 	UPDATE_STATE128L(vnonce, vkey)
 
 auth:
-	MOVD additionalData_len+80(FP), remain
+	MOVD additionalData_len+96(FP), remain
 	CBZ  remain, decrypt
 
-	MOVD additionalData_base+72(FP), src_ptr
+	MOVD additionalData_base+88(FP), src_ptr
 	CMP  $32, remain
 	BLT  authPartial
 
@@ -579,10 +617,10 @@ authPartial:
 	UPDATE_STATE128L(t0, t1)
 
 decrypt:
-	MOVD ciphertext_len+56(FP), remain
+	MOVD ciphertext_len+48(FP), remain
 	CBZ  remain, finalize
 
-	MOVD ciphertext_base+48(FP), src_ptr
+	MOVD ciphertext_base+40(FP), src_ptr
 	CMP  $32, remain
 	BLT  decryptPartial
 
@@ -660,12 +698,12 @@ decryptPartial:
 
 finalize:
 	// t = S2 ^ (LE64(ad_len) || LE64(msg_len))
-	MOVD additionalData_len+80(FP), ad_len
-	MOVD ciphertext_len+56(FP), ct_len
+	MOVD additionalData_len+96(FP), ad_len
+	MOVD ciphertext_len+48(FP), ct_len
 	LSL  $3, ad_len
 	LSL  $3, ct_len
-	STP  (ad_len, ct_len), (stack_ptr)
-	VLD1 (stack_ptr), [t.B16]
+	VMOV ad_len, t.D[0]
+	VMOV ct_len, t.D[1]
 	VEOR s2.B16, t.B16, t.B16
 
 	// Repeat(7, Update(t, t))
@@ -678,12 +716,31 @@ finalize:
 	UPDATE_STATE128L(t, t)
 
 	// tag = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5 ^ S6
-	VEOR3 s0.B16, s1.B16, s2.B16, tag.B16
-	VEOR3 s3.B16, s4.B16, tag.B16, tag.B16
-	VEOR3 s5.B16, s6.B16, tag.B16, tag.B16
+	VEOR3 s0.B16, s1.B16, s2.B16, expectedTag.B16
+	VEOR3 s3.B16, s4.B16, expectedTag.B16, expectedTag.B16
+	VEOR3 s5.B16, s6.B16, expectedTag.B16, expectedTag.B16
 
-	MOVD expectedTag+16(FP), dst_ptr
-	VST1 [tag.B16], (dst_ptr)
+constantTimeCompare:
+	MOVD tag_base+64(FP), tag_ptr
+	VLD1 (tag_ptr), [gotTag.B16]
+	VEOR expectedTag.B16, gotTag.B16, gotTag.B16
+	VMOV gotTag.D[0], tag_lo
+	VMOV gotTag.D[1], tag_hi
+
+	// tag_lo = 0 iff tag == expectedTag
+	EOR tag_hi, tag_hi, tag_lo
+	CMP $0, tag_lo
+
+	// tag_lo = 1 iff tag_lo == 0
+	//          0 otherwise
+	CSET  EQ, tag_lo
+	MOVBU tag_lo, ok+112(FP)
+
+done:
+	STP (ZR, ZR), (stack_ptr)
+	STP (ZR, ZR), 16(stack_ptr)
+	CLEAR_STATE128L()
+	POP_DIT()
 
 	RET
 
@@ -695,6 +752,9 @@ finalize:
 #undef ad_len
 #undef ct_len
 #undef stack_ptr
+#undef tag_ptr
+#undef tag_lo
+#undef tag_hi
 
 #undef vkey
 #undef vnonce
@@ -709,9 +769,18 @@ finalize:
 #undef v0
 #undef v1
 #undef t
-#undef tag
+#undef gotTag
 #undef fix0
 #undef fix1
+
+// CLEAR_STATE256 clears |s{0..7}|.
+#define CLEAR_STATE256() \
+	VEOR s0.B16, s0.B16, s0.B16 \
+	VEOR s1.B16, s1.B16, s1.B16 \
+	VEOR s2.B16, s2.B16, s2.B16 \
+	VEOR s3.B16, s3.B16, s3.B16 \
+	VEOR s4.B16, s4.B16, s4.B16 \
+	VEOR s5.B16, s5.B16, s5.B16
 
 // UPDATE_STATE256 performs AEGIS-256 Update.
 //
@@ -748,8 +817,8 @@ finalize:
 	AESMC stmp1.B16, stmp1.B16             \
 	VEOR3 s0.B16, m.B16, stmp1.B16, s0.B16
 
-// func update256(s *state256, m *[BlockSize256]byte)
-TEXT ·update256(SB), NOSPLIT, $0-16
+// func update256Asm(s *state256, m *[BlockSize256]byte)
+TEXT ·update256Asm(SB), NOSPLIT, $0-16
 #define s_ptr R0
 #define m_ptr R1
 #define m V30
@@ -780,8 +849,8 @@ TEXT ·update256(SB), NOSPLIT, $0-16
 #undef m_ptr
 #undef m
 
-// func seal256(key *[KeySize256]byte, nonce *[NonceSize256]byte, out, plaintext, additionalData []byte)
-TEXT ·seal256(SB), NOSPLIT, $16-88
+// func seal256Asm(key *[KeySize256]byte, nonce *[NonceSize256]byte, out, plaintext, additionalData []byte)
+TEXT ·seal256Asm(SB), NOSPLIT, $16-88
 #define src_ptr R1
 #define dst_ptr R2
 #define remain R3
@@ -805,6 +874,7 @@ TEXT ·seal256(SB), NOSPLIT, $16-88
 #define t V22
 #define tag V23
 
+	PUSH_DIT()
 	INIT_ZERO()
 
 	MOVD out_base+16(FP), dst_ptr
@@ -935,7 +1005,6 @@ encryptPartial:
 	MOVD stack_ptr, src_ptr    // read from stack_ptr
 	MOVD dst_ptr, stack_ptr    // write to dst_ptr
 	CALL copy32<>(SB)
-	MOVD src_ptr, stack_ptr    // reset stack_ptr
 	ADD  remain, dst_ptr
 
 finalize:
@@ -944,8 +1013,8 @@ finalize:
 	MOVD plaintext_len+48(FP), pt_len
 	LSL  $3, ad_len
 	LSL  $3, pt_len
-	STP  (ad_len, pt_len), (stack_ptr)
-	VLD1 (stack_ptr), [t.B16]
+	VMOV ad_len, t.D[0]
+	VMOV pt_len, t.D[1]
 	VEOR s3.B16, t.B16, t.B16
 
 	// Repeat(7, Update(t))
@@ -963,6 +1032,10 @@ finalize:
 	VEOR  s5.B16, tag.B16, tag.B16
 
 	VST1 [tag.B16], (dst_ptr)
+
+done:
+	CLEAR_STATE256()
+	POP_DIT()
 
 	RET
 
@@ -989,8 +1062,8 @@ finalize:
 #undef t
 #undef tag
 
-// func open256(key *[KeySize256]byte, nonce *[NonceSize256]byte, expectedTag *[TagSize256]byte, out, ciphertext, additionalData []byte)
-TEXT ·open256(SB), NOSPLIT, $0-96
+// func open256Asm(key *[KeySize256]byte, nonce *[NonceSize256]byte, expectedTag *[TagSize256]byte, out, ciphertext, additionalData []byte)
+TEXT ·open256Asm(SB), NOSPLIT, $0-113
 #define src_ptr R1
 #define dst_ptr R2
 #define remain R3
@@ -999,6 +1072,9 @@ TEXT ·open256(SB), NOSPLIT, $0-96
 #define ad_len R6
 #define ct_len R7
 #define stack_ptr R8
+#define tag_ptr R9
+#define tag_lo R10
+#define tag_hi R11
 
 #define k0 V11
 #define k1 V12
@@ -1014,12 +1090,13 @@ TEXT ·open256(SB), NOSPLIT, $0-96
 #define t V22
 #define v V23
 #define out V24
-#define tag V25
+#define gotTag V25
 #define fix V26
 
+	PUSH_DIT()
 	INIT_ZERO()
 
-	MOVD out_base+24(FP), dst_ptr
+	MOVD out_base+16(FP), dst_ptr
 
 	MOVD RSP, stack_ptr
 	SUB  $16, stack_ptr
@@ -1074,10 +1151,10 @@ initState:
 #undef UPDATE
 
 auth:
-	MOVD additionalData_len+80(FP), remain
+	MOVD additionalData_len+96(FP), remain
 	CBZ  remain, decrypt
 
-	MOVD additionalData_base+72(FP), src_ptr
+	MOVD additionalData_base+88(FP), src_ptr
 	CMP  $16, remain
 	BLT  authPartial
 
@@ -1101,10 +1178,10 @@ authPartial:
 	UPDATE_STATE256(xi)
 
 decrypt:
-	MOVD ciphertext_len+56(FP), remain
+	MOVD ciphertext_len+48(FP), remain
 	CBZ  remain, finalize
 
-	MOVD ciphertext_base+48(FP), src_ptr
+	MOVD ciphertext_base+40(FP), src_ptr
 	CMP  $16, remain
 	BLT  decryptPartial
 
@@ -1164,12 +1241,12 @@ decryptPartial:
 
 finalize:
 	// t = S3 ^ (LE64(ad_len) || LE64(msg_len))
-	MOVD additionalData_len+80(FP), ad_len
-	MOVD ciphertext_len+56(FP), ct_len
+	MOVD additionalData_len+96(FP), ad_len
+	MOVD ciphertext_len+48(FP), ct_len
 	LSL  $3, ad_len
 	LSL  $3, ct_len
-	STP  (ad_len, ct_len), (stack_ptr)
-	VLD1 (stack_ptr), [t.B16]
+	VMOV ad_len, t.D[0]
+	VMOV ct_len, t.D[1]
 	VEOR s3.B16, t.B16, t.B16
 
 	// Repeat(7, Update(t, t))
@@ -1182,12 +1259,30 @@ finalize:
 	UPDATE_STATE256(t)
 
 	// tag = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5
-	VEOR3 s0.B16, s1.B16, s2.B16, tag.B16
-	VEOR3 s3.B16, s4.B16, tag.B16, tag.B16
-	VEOR  s5.B16, tag.B16, tag.B16
+	VEOR3 s0.B16, s1.B16, s2.B16, gotTag.B16
+	VEOR3 s3.B16, s4.B16, gotTag.B16, gotTag.B16
+	VEOR  s5.B16, gotTag.B16, gotTag.B16
 
-	MOVD expectedTag+16(FP), dst_ptr
-	VST1 [tag.B16], (dst_ptr)
+constantTimeCompare:
+	MOVD tag_base+64(FP), tag_ptr
+	VLD1 (tag_ptr), [gotTag.B16]
+	VEOR expectedTag.B16, gotTag.B16, gotTag.B16
+	VMOV gotTag.D[0], tag_lo
+	VMOV gotTag.D[1], tag_hi
+
+	// tag_lo = 0 iff tag == expectedTag
+	EOR tag_hi, tag_hi, tag_lo
+	CMP $0, tag_lo
+
+	// tag_lo = 1 iff tag_lo == 0
+	//          0 otherwise
+	CSET  EQ, tag_lo
+	MOVBU tag_lo, ok+112(FP)
+
+done:
+	STP (ZR, ZR), (stack_ptr)
+	CLEAR_STATE256()
+	POP_DIT()
 
 	RET
 
@@ -1199,6 +1294,9 @@ finalize:
 #undef ad_len
 #undef ct_len
 #undef stack_ptr
+#undef tag_ptr
+#undef tag_lo
+#undef tag_hi
 
 #undef k0
 #undef k1
@@ -1214,14 +1312,14 @@ finalize:
 #undef t
 #undef v
 #undef out
-#undef tag
+#undef gotTag
 #undef fix
 
-// func aesRound(out, in, rk *[16]byte)
-TEXT ·aesRound(SB), NOSPLIT, $0-24
-#define in_ptr R9
-#define rk_ptr R10
-#define out_ptr R11
+// func aesRoundAsm(out, in, rk *[16]byte)
+TEXT ·aesRoundAsm(SB), NOSPLIT, $0-24
+#define in_ptr R20
+#define rk_ptr R21
+#define out_ptr R22
 #define block V30
 #define key V31
 
