@@ -87,13 +87,13 @@ func (*aegis128) Overhead() int {
 }
 
 func (a *aegis128) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
-	if len(plaintext) > MaxPlaintextSize128L {
+	if uint64(len(plaintext)) > MaxPlaintextSize128L {
 		panic("aegis: plaintext too large")
 	}
 	if len(nonce) != NonceSize128L {
 		panic("aegis: invalid nonce length")
 	}
-	if len(additionalData) > MaxAdditionalDataSize128L {
+	if uint64(len(additionalData)) > MaxAdditionalDataSize128L {
 		panic("aegis: additional data too large")
 	}
 
@@ -111,8 +111,8 @@ func (a *aegis128) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, 
 		panic("aegis: invalid nonce length")
 	}
 	if len(ciphertext) < TagSize128L ||
-		len(ciphertext) > ciphertextMax128L ||
-		len(additionalData) > MaxAdditionalDataSize128L {
+		uint64(len(ciphertext)) > ciphertextMax128L ||
+		uint64(len(additionalData)) > MaxAdditionalDataSize128L {
 		return nil, errOpen
 	}
 
@@ -146,13 +146,13 @@ func (*aegis256) Overhead() int {
 }
 
 func (a *aegis256) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
-	if len(plaintext) > MaxPlaintextSize256 {
+	if uint64(len(plaintext)) > MaxPlaintextSize256 {
 		panic("aegis: plaintext too large")
 	}
 	if len(nonce) != NonceSize256 {
 		panic("aegis: invalid nonce length")
 	}
-	if len(additionalData) > MaxAdditionalDataSize256 {
+	if uint64(len(additionalData)) > MaxAdditionalDataSize256 {
 		panic("aegis: additional data too large")
 	}
 
@@ -170,8 +170,8 @@ func (a *aegis256) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, 
 		panic("aegis: invalid nonce length")
 	}
 	if len(ciphertext) < TagSize256 ||
-		len(ciphertext) > ciphertextMax256 ||
-		len(additionalData) > MaxAdditionalDataSize256 {
+		uint64(len(ciphertext)) > ciphertextMax256 ||
+		uint64(len(additionalData)) > MaxAdditionalDataSize256 {
 		return nil, errOpen
 	}
 
