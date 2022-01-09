@@ -8,12 +8,9 @@
 This module implements the AEGIS-128L and AEGIS-256 AEAD
 algorithms.
 
-See https://www.ietf.org/archive/id/draft-denis-aegis-aead-00.html
+See https://competitions.cr.yp.to/round3/aegisv11.pdf or 
+https://www.ietf.org/archive/id/draft-denis-aegis-aead-00.html
 for more information.
-
-IMPORTANT: this is a work in progress implementation of a draft
-IETF specification. Do not use this library unless you understand
-the implications.
 
 ## Installation
 
@@ -27,7 +24,7 @@ go get github.com/ericlagergren/aegis@latest
 ## Usage
 
 The APIs conform to Go's `crypto/cipher` package. Note that the
-following example is not a substitute for reading the package's
+following example is not a substitute for reading the package
 documentation.
 
 ```go
@@ -81,6 +78,22 @@ func main() {
 	}
 }
 ```
+
+## Performance
+
+The x86-64 and ARMv8 assembly implementations run at 0.3 and 0.4
+cycles per byte, respectively. The x86-64 implementation requires
+SSE4.1 and AES instructions. The ARMv8 implementation requires
+NEON and AES instructions.
+
+The default pure Go implementation will be selected if the CPU
+does not support either assembly implementation. (This 
+implementation can also be selected with the `purego` build tag.) 
+It is much slower at around 5.6 cycles per byte.
+
+Note also that the pure Go implementation uses S-boxes and leaks
+cache timing information. See golang.org/issues/13795 for more
+information.
 
 ## Security
 
