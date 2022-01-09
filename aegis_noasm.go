@@ -1,4 +1,4 @@
-//go:build (!amd64 && !arm64 && !gc) || purego
+//go:build !(amd64 || arm64) || !gc || purego
 
 package aegis
 

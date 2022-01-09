@@ -1,4 +1,4 @@
-//go:build (arm64 || amd64) && gc && !purego
+//go:build (amd64 || arm64) && gc && !purego
 
 package aegis
 
@@ -10,6 +10,7 @@ import (
 
 var haveAsm = runtime.GOOS == "darwin" ||
 	cpu.ARM64.HasAES ||
+	(cpu.ARM.HasAES && cpu.ARM.HasNEON) ||
 	(cpu.X86.HasAES && cpu.X86.HasSSE41)
 
 func seal128L(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, plaintext, additionalData []byte) {
