@@ -60,9 +60,9 @@ const (
 // New creates an instance of the AEGIS AEAD algorithm.
 //
 // New accepts two key lengths. If the key is 128 bits, New
-// returns an instance of AEGIS-128L. If the key is 256 bits, New
-// returns an instance of AEGIS-256. Any other key lengths are an
-// error.
+// returns an instance of AEGIS-128L. Otherwise, if the key is
+// 256 bits, New returns an instance of AEGIS-256. Any other key
+// lengths are an error.
 func New(key []byte) (cipher.AEAD, error) {
 	switch len(key) {
 	case KeySize128L:
@@ -124,15 +124,10 @@ func (a *aegis128) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, 
 		panic("aegis: invalid buffer overlap")
 	}
 
-	var expectedTag [TagSize128L]byte
-	open128L(&a.key, (*[NonceSize128L]byte)(nonce), &expectedTag,
-		out, ciphertext, additionalData)
-
-	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
-		for i := range out {
-			out[i] = 0
-		}
-		runtime.KeepAlive(out)
+	ok := open128L(&a.key, (*[NonceSize128L]byte)(nonce), out,
+		ciphertext, tag, additionalData)
+	if !ok {
+		memclr(out)
 		return nil, errOpen
 	}
 	return ret, nil
@@ -167,7 +162,6 @@ func (a *aegis256) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 	}
 
 	seal256(&a.key, (*[NonceSize256]byte)(nonce), out, plaintext, additionalData)
-
 	return ret
 }
 
@@ -189,16 +183,19 @@ func (a *aegis256) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, 
 		panic("aegis: invalid buffer overlap")
 	}
 
-	var expectedTag [TagSize256]byte
-	open256(&a.key, (*[NonceSize256]byte)(nonce), &expectedTag, out,
-		ciphertext, additionalData)
-
-	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
-		for i := range out {
-			out[i] = 0
-		}
-		runtime.KeepAlive(out)
+	ok := open256(&a.key, (*[NonceSize256]byte)(nonce), out,
+		ciphertext, tag, additionalData)
+	if !ok {
+		memclr(out)
 		return nil, errOpen
 	}
 	return ret, nil
+}
+
+//go:noinline
+func memclr(p []byte) {
+	for i := range p {
+		p[i] = 0
+	}
+	runtime.KeepAlive(p)
 }

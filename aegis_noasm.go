@@ -1,4 +1,4 @@
-//go:build !(arm64 && gc) || purego
+//go:build (!amd64 && !arm64 && !gc) || purego
 
 package aegis
 
@@ -6,8 +6,8 @@ func seal128L(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, plaintext
 	seal128LGeneric(key, nonce, out, plaintext, additionalData)
 }
 
-func open128L(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, expectedTag *[TagSize128L]byte, out, ciphertext, additionalData []byte) {
-	open128LGeneric(key, nonce, expectedTag, out, ciphertext, additionalData)
+func open128L(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, ciphertext, tag, additionalData []byte) bool {
+	return open128LGeneric(key, nonce, out, ciphertext, tag, additionalData)
 }
 
 func update128L(s *state128L, m *[BlockSize128L]byte) {
@@ -18,8 +18,8 @@ func seal256(key *[KeySize256]byte, nonce *[NonceSize256]byte, out, plaintext, a
 	seal256Generic(key, nonce, out, plaintext, additionalData)
 }
 
-func open256(key *[KeySize256]byte, nonce *[NonceSize256]byte, expectedTag *[TagSize128L]byte, out, ciphertext, additionalData []byte) {
-	open256Generic(key, nonce, expectedTag, out, ciphertext, additionalData)
+func open256(key *[KeySize256]byte, nonce *[NonceSize256]byte, out, ciphertext, tag, additionalData []byte) bool {
+	return open256Generic(key, nonce, out, ciphertext, tag, additionalData)
 }
 
 func update256(s *state256, m *[BlockSize256]byte) {
