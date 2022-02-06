@@ -1,9 +1,6 @@
 # aegis
-<p align="center">
-<a href="https://pkg.go.dev/github.com/ericlagergren/aegis"><img src="https://pkg.go.dev/badge/github.com/ericlagergren/aegis.svg" alt="Go Reference"></a>
-</p>
 
-<p align="center">AEGIS</p>
+[![Go Reference](https://pkg.go.dev/badge/github.com/ericlagergren/aegis.svg)](https://pkg.go.dev/github.com/ericlagergren/aegis)
 
 This module implements the AEGIS-128L and AEGIS-256 AEAD
 algorithms.
