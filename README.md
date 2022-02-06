@@ -11,9 +11,6 @@ for more information.
 
 ## Installation
 
-Each implementation can be installed using Go modules. For
-example:
-
 ```bash
 go get github.com/ericlagergren/aegis@latest
 ```
