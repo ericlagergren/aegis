@@ -1,4 +1,4 @@
-//go:build fuzz
+//go:build fuzz && go1.18
 
 package aegis_test
 
@@ -12,6 +12,80 @@ import (
 	"github.com/ericlagergren/aegis/internal/ref"
 	rand "github.com/ericlagergren/saferand"
 )
+
+var sink []byte
+
+func FuzzSeal(f *testing.F) {
+	for _, v := range []struct {
+		key            []byte
+		nonce          []byte
+		plaintext      []byte
+		additionalData []byte
+	}{
+		{},
+		{
+			key:            make([]byte, 16),
+			nonce:          make([]byte, 16),
+			plaintext:      make([]byte, 3, 4),
+			additionalData: make([]byte, 2, 4),
+		},
+		{
+			key:            make([]byte, 32),
+			nonce:          make([]byte, 32, 64),
+			plaintext:      make([]byte, 77, 78),
+			additionalData: make([]byte, 12),
+		},
+	} {
+		f.Add(v.key, v.nonce, v.plaintext, v.additionalData)
+	}
+	f.Fuzz(func(t *testing.T, key, nonce, plaintext, additionalData []byte) {
+		aead, err := aegis.New(key)
+		if err != nil {
+			switch len(key) {
+			case aegis.KeySize128L, aegis.KeySize256:
+				t.Fatal(err)
+			default:
+				return
+			}
+		}
+
+		shouldPanic := len(nonce) != aead.NonceSize()
+		switch len(key) {
+		case aegis.KeySize128L:
+			shouldPanic = shouldPanic ||
+				uint64(len(plaintext)) > aegis.MaxPlaintextSize128L ||
+				uint64(len(additionalData)) > aegis.MaxAdditionalDataSize128L
+		case aegis.KeySize256:
+			shouldPanic = shouldPanic ||
+				uint64(len(plaintext)) > aegis.MaxPlaintextSize256 ||
+				uint64(len(additionalData)) > aegis.MaxAdditionalDataSize256
+		}
+		defer func() {
+			panicked := recover() != nil
+			if shouldPanic != panicked {
+				t.Fatalf("expected %t, got %t", shouldPanic, panicked)
+			}
+		}()
+
+		want := plaintext
+		plaintext = clone(plaintext)
+
+		ciphertext := aead.Seal(plaintext[:0], nonce, plaintext, additionalData)
+		got, err := aead.Open(ciphertext[:0], nonce, ciphertext, additionalData)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(want, got) {
+			t.Fatalf("expected %x, got %x", want, got)
+		}
+	})
+}
+
+func clone(p []byte) []byte {
+	v := make([]byte, len(p), cap(p))
+	copy(v, p)
+	return v
+}
 
 func TestFuzz(t *testing.T) {
 	t.Run("AEGIS-128L", func(t *testing.T) {
