@@ -32,3 +32,69 @@ func TestCopy32(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkSeal16B_128LNoSHA3(b *testing.B) {
+	benchmarkSealNoSHA3(b, KeySize128L, NonceSize128L, make([]byte, 16))
+}
+
+func BenchmarkOpen16B_128LNoSHA3(b *testing.B) {
+	benchmarkOpenNoSHA3(b, KeySize128L, NonceSize128L, make([]byte, 16))
+}
+
+func BenchmarkSeal1K_128LNoSHA3(b *testing.B) {
+	benchmarkSealNoSHA3(b, KeySize128L, NonceSize128L, make([]byte, 1024))
+}
+
+func BenchmarkOpen1K_128LNoSHA3(b *testing.B) {
+	benchmarkOpenNoSHA3(b, KeySize128L, NonceSize128L, make([]byte, 1024))
+}
+
+func BenchmarkSeal8K_128LNoSHA3(b *testing.B) {
+	benchmarkSealNoSHA3(b, KeySize128L, NonceSize128L, make([]byte, 8*1024))
+}
+
+func BenchmarkOpen8K_128LNoSHA3(b *testing.B) {
+	benchmarkOpenNoSHA3(b, KeySize128L, NonceSize128L, make([]byte, 8*1024))
+}
+
+func BenchmarkSeal16B_256NoSHA3(b *testing.B) {
+	benchmarkSealNoSHA3(b, KeySize256, NonceSize256, make([]byte, 16))
+}
+
+func BenchmarkOpen16B_256NoSHA3(b *testing.B) {
+	benchmarkOpenNoSHA3(b, KeySize256, NonceSize256, make([]byte, 16))
+}
+
+func BenchmarkSeal1K_256NoSHA3(b *testing.B) {
+	benchmarkSealNoSHA3(b, KeySize256, NonceSize256, make([]byte, 1024))
+}
+
+func BenchmarkOpen1K_256NoSHA3(b *testing.B) {
+	benchmarkOpenNoSHA3(b, KeySize256, NonceSize256, make([]byte, 1024))
+}
+
+func BenchmarkSeal8K_256NoSHA3(b *testing.B) {
+	benchmarkSealNoSHA3(b, KeySize256, NonceSize256, make([]byte, 8*1024))
+}
+
+func BenchmarkOpen8K_256NoSHA3(b *testing.B) {
+	benchmarkOpenNoSHA3(b, KeySize256, NonceSize256, make([]byte, 8*1024))
+}
+
+func benchmarkSealNoSHA3(b *testing.B, keySize, nonceSize int, buf []byte) {
+	if !haveSHA3 {
+		b.Skip("CPU does not support SHA-3 extensions")
+	}
+	haveSHA3 = false
+	b.Cleanup(func() {
+		haveSHA3 = true
+	})
+	benchmarkSeal(b, keySize, nonceSize, buf)
+}
+
+func benchmarkOpenNoSHA3(b *testing.B, keySize, nonceSize int, buf []byte) {
+	if !haveSHA3 {
+		b.Skip("CPU does not support SHA-3 extensions")
+	}
+	benchmarkOpen(b, keySize, nonceSize, buf)
+}

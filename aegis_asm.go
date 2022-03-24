@@ -8,25 +8,12 @@ import (
 	"golang.org/x/sys/cpu"
 )
 
-var haveAsm = runtime.GOOS == "darwin" ||
-	cpu.ARM64.HasAES ||
-	(cpu.ARM.HasAES && cpu.ARM.HasNEON) ||
-	(cpu.X86.HasAES && cpu.X86.HasSSE41)
-
-func seal128L(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, plaintext, additionalData []byte) {
-	if haveAsm {
-		seal128LAsm(key, nonce, out, plaintext, additionalData)
-	} else {
-		seal128LGeneric(key, nonce, out, plaintext, additionalData)
-	}
-}
-
-func open128L(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, ciphertext, tag, additionalData []byte) bool {
-	if haveAsm {
-		return open128LAsm(key, nonce, out, ciphertext, tag, additionalData)
-	}
-	return open128LGeneric(key, nonce, out, ciphertext, tag, additionalData)
-}
+var (
+	haveAsm = runtime.GOOS == "darwin" ||
+		cpu.ARM64.HasAES ||
+		(cpu.ARM.HasAES && cpu.ARM.HasNEON) ||
+		(cpu.X86.HasAES && cpu.X86.HasSSE41)
+)
 
 func update128L(s *state128L, m *[BlockSize128L]byte) {
 	if haveAsm {
@@ -34,21 +21,6 @@ func update128L(s *state128L, m *[BlockSize128L]byte) {
 	} else {
 		update128LGeneric(s, readUint128(m[0:16]), readUint128(m[16:32]))
 	}
-}
-
-func seal256(key *[KeySize256]byte, nonce *[NonceSize256]byte, out, plaintext, additionalData []byte) {
-	if haveAsm {
-		seal256Asm(key, nonce, out, plaintext, additionalData)
-	} else {
-		seal256Generic(key, nonce, out, plaintext, additionalData)
-	}
-}
-
-func open256(key *[KeySize256]byte, nonce *[NonceSize256]byte, out, ciphertext, tag, additionalData []byte) bool {
-	if haveAsm {
-		return open256Asm(key, nonce, out, ciphertext, tag, additionalData)
-	}
-	return open256Generic(key, nonce, out, ciphertext, tag, additionalData)
 }
 
 func update256(s *state256, m *[BlockSize256]byte) {
