@@ -1,28 +1,29 @@
-name: Go
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+name: CI
+on: ['push', 'pull_request']
 
 jobs:
-
-  build:
-    runs-on: ubuntu-latest
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['windows-latest', 'ubuntu-latest', 'macOS-latest']
+        go: ['1.17.x', '1.18.x']
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
-
+    - uses: actions/checkout@v3
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
-        go-version: 1.17
-
+        go-version: ${{ matrix.go }}
+        check-latest: true
     - name: Build
       run: go build -v ./...
-
     - name: Test
-      run: go test -v -vet all -tags fuzz ./...
-    
+      run: go test -v -vet all ./...
     - name: TestPureGo
-      run: go test -v -vet all -tags fuzz,purego ./...
+      run: go test -v -vet all -tags purego ./...
+    - uses: dominikh/staticcheck-action@v1.1.0
+      with:
+        version: '2022.1'
+        install-go: false
+        cache-key: ${{ matrix.go }}
