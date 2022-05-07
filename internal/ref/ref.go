@@ -14,7 +14,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ericlagergren/aegis/internal/subtle"
+	"github.com/ericlagergren/subtle"
 )
 
 const (
