@@ -798,7 +798,7 @@ done:
 #undef t
 #undef tag
 
-// func open128LAsm(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, ciphertext, tag, additionalData []byte)
+// func open128LAsm(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, ciphertext, tag, additionalData []byte) (ok bool)
 TEXT ·open128LAsm(SB), NOSPLIT, $32-113
 #define src_ptr R1
 #define dst_ptr R2
@@ -1033,7 +1033,7 @@ constantTimeCompare:
 	VMOV gotTag.D[1], tag_hi
 
 	// tag_lo = 0 iff tag == expectedTag
-	EOR tag_hi, tag_hi, tag_lo
+	EOR tag_hi, tag_lo, tag_lo
 	CMP $0, tag_lo
 
 	// tag_lo = 1 iff tag_lo == 0
@@ -1079,7 +1079,7 @@ done:
 #undef fix0
 #undef fix1
 
-// func open128LAsmSHA3(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, ciphertext, tag, additionalData []byte)
+// func open128LAsmSHA3(key *[KeySize128L]byte, nonce *[NonceSize128L]byte, out, ciphertext, tag, additionalData []byte) (ok bool)
 TEXT ·open128LAsmSHA3(SB), NOSPLIT, $32-113
 #define src_ptr R1
 #define dst_ptr R2
@@ -1307,7 +1307,7 @@ constantTimeCompare:
 	VMOV gotTag.D[1], tag_hi
 
 	// tag_lo = 0 iff tag == expectedTag
-	EOR tag_hi, tag_hi, tag_lo
+	EOR tag_hi, tag_lo, tag_lo
 	CMP $0, tag_lo
 
 	// tag_lo = 1 iff tag_lo == 0
@@ -1910,7 +1910,7 @@ done:
 #undef t
 #undef tag
 
-// func open256Asm(key *[KeySize256]byte, nonce *[NonceSize256]byte, tag, out, ciphertext, additionalData []byte)
+// func open256Asm(key *[KeySize256]byte, nonce *[NonceSize256]byte, tag, out, ciphertext, additionalData []byte) (ok bool)
 TEXT ·open256Asm(SB), NOSPLIT, $0-113
 #define src_ptr R1
 #define dst_ptr R2
@@ -2110,11 +2110,11 @@ finalize:
 	UPDATE_STATE256(t)
 
 	// tag = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5
-	VEOR s0.B16, s1.B16, gotTag.B16
-	VEOR s2.B16, gotTag.B16, gotTag.B16
-	VEOR s3.B16, gotTag.B16, gotTag.B16
-	VEOR s4.B16, gotTag.B16, gotTag.B16
-	VEOR s5.B16, gotTag.B16, gotTag.B16
+	VEOR s0.B16, s1.B16, expectedTag.B16
+	VEOR s2.B16, expectedTag.B16, expectedTag.B16
+	VEOR s3.B16, expectedTag.B16, expectedTag.B16
+	VEOR s4.B16, expectedTag.B16, expectedTag.B16
+	VEOR s5.B16, expectedTag.B16, expectedTag.B16
 
 constantTimeCompare:
 	MOVD tag_base+64(FP), tag_ptr
@@ -2124,7 +2124,7 @@ constantTimeCompare:
 	VMOV gotTag.D[1], tag_hi
 
 	// tag_lo = 0 iff tag == expectedTag
-	EOR tag_hi, tag_hi, tag_lo
+	EOR tag_hi, tag_lo, tag_lo
 	CMP $0, tag_lo
 
 	// tag_lo = 1 iff tag_lo == 0
@@ -2169,7 +2169,7 @@ done:
 #undef gotTag
 #undef fix
 
-// func open256AsmSHA3(key *[KeySize256]byte, nonce *[NonceSize256]byte, tag, out, ciphertext, additionalData []byte)
+// func open256AsmSHA3(key *[KeySize256]byte, nonce *[NonceSize256]byte, tag, out, ciphertext, additionalData []byte) (ok bool)
 TEXT ·open256AsmSHA3(SB), NOSPLIT, $0-113
 #define src_ptr R1
 #define dst_ptr R2
@@ -2367,9 +2367,9 @@ finalize:
 	UPDATE_STATE256_SHA3(t)
 
 	// tag = S0 ^ S1 ^ S2 ^ S3 ^ S4 ^ S5
-	VEOR3 s0.B16, s1.B16, s2.B16, gotTag.B16
-	VEOR3 s3.B16, s4.B16, gotTag.B16, gotTag.B16
-	VEOR  s5.B16, gotTag.B16, gotTag.B16
+	VEOR3 s0.B16, s1.B16, s2.B16, expectedTag.B16
+	VEOR3 s3.B16, s4.B16, expectedTag.B16, expectedTag.B16
+	VEOR  s5.B16, expectedTag.B16, expectedTag.B16
 
 constantTimeCompare:
 	MOVD tag_base+64(FP), tag_ptr
@@ -2379,7 +2379,7 @@ constantTimeCompare:
 	VMOV gotTag.D[1], tag_hi
 
 	// tag_lo = 0 iff tag == expectedTag
-	EOR tag_hi, tag_hi, tag_lo
+	EOR tag_hi, tag_lo, tag_lo
 	CMP $0, tag_lo
 
 	// tag_lo = 1 iff tag_lo == 0
