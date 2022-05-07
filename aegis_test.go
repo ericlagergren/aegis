@@ -4,12 +4,21 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"testing"
 )
 
 func unhex(s string) []byte {
 	p, err := hex.DecodeString(s)
 	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
+func randbuf(n int) []byte {
+	p := make([]byte, n)
+	if _, err := rand.Read(p); err != nil {
 		panic(err)
 	}
 	return p
@@ -72,6 +81,7 @@ func TestVectors128L(t *testing.T) {
 		additionalData []byte
 		plaintext      []byte
 		ciphertext     []byte // ciphertext || tag
+		err            error
 	}{
 		{
 			name:       "A.2.2",
@@ -91,8 +101,8 @@ func TestVectors128L(t *testing.T) {
 			key:            unhex("10010000000000000000000000000000"),
 			nonce:          unhex("10000200000000000000000000000000"),
 			additionalData: unhex("0001020304050607"),
-			plaintext:      unhex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"),
-			ciphertext:     unhex("79d94593d8c2119d7e8fd9b8fc77845c5c077a05b2528b6ac54b563aed8efe84cc6f3372f6aa1bb82388d695c3962d9a"),
+			plaintext:      unhex("000102030405060708090a0b0c0d0e0f" + "101112131415161718191a1b1c1d1e1f"),
+			ciphertext:     unhex("79d94593d8c2119d7e8fd9b8fc77845c" + "5c077a05b2528b6ac54b563aed8efe84" + "cc6f3372f6aa1bb82388d695c3962d9a"),
 		},
 		{
 			name:           "A.2.5",
@@ -100,7 +110,47 @@ func TestVectors128L(t *testing.T) {
 			nonce:          unhex("10000200000000000000000000000000"),
 			additionalData: unhex("0001020304050607"),
 			plaintext:      unhex("000102030405060708090a0b0c0d"),
-			ciphertext:     unhex("79d94593d8c2119d7e8fd9b8fc775c04b3dba849b2701effbe32c7f0fab7"),
+			ciphertext:     unhex("79d94593d8c2119d7e8fd9b8fc77" + "5c04b3dba849b2701effbe32c7f0fab7"),
+		},
+		{
+			name:           "A.2.6",
+			key:            unhex("10010000000000000000000000000000"),
+			nonce:          unhex("10000200000000000000000000000000"),
+			additionalData: unhex("000102030405060708090a0b0c0d0e0f" + "101112131415161718191a1b1c1d1e1f" + "20212223242526272829"),
+			plaintext:      unhex("101112131415161718191a1b1c1d1e1f" + "202122232425262728292a2b2c2d2e2f" + "3031323334353637"),
+			ciphertext:     unhex("b31052ad1cca4e291abcf2df3502e6bd" + "b1bfd6db36798be3607b1f94d34478aa" + "7ede7f7a990fec10" + "7542a745733014f9474417b337399507"),
+		},
+		{
+			name:           "A.2.7",
+			key:            unhex("10000200000000000000000000000000"),
+			nonce:          unhex("10010000000000000000000000000000"),
+			additionalData: unhex("0001020304050607"),
+			ciphertext:     unhex("79d94593d8c2119d7e8fd9b8fc77" + "5c04b3dba849b2701effbe32c7f0fab7"),
+			err:            errOpen,
+		},
+		{
+			name:           "A.2.8",
+			key:            unhex("10010000000000000000000000000000"),
+			nonce:          unhex("10000200000000000000000000000000"),
+			additionalData: unhex("0001020304050607"),
+			ciphertext:     unhex("79d94593d8c2119d7e8fd9b8fc78" + "5c04b3dba849b2701effbe32c7f0fab7"),
+			err:            errOpen,
+		},
+		{
+			name:           "A.2.9",
+			key:            unhex("10010000000000000000000000000000"),
+			nonce:          unhex("10000200000000000000000000000000"),
+			additionalData: unhex("0001020304050608"),
+			ciphertext:     unhex("79d94593d8c2119d7e8fd9b8fc77" + "5c04b3dba849b2701effbe32c7f0fab7"),
+			err:            errOpen,
+		},
+		{
+			name:           "A.2.10",
+			key:            unhex("10010000000000000000000000000000"),
+			nonce:          unhex("10000200000000000000000000000000"),
+			additionalData: unhex("0001020304050607"),
+			ciphertext:     unhex("79d94593d8c2119d7e8fd9b8fc77" + "6c04b3dba849b2701effbe32c7f0fab8"),
+			err:            errOpen,
 		},
 		{
 			name:           "jedisct1/rust-aegis",
@@ -128,18 +178,21 @@ func TestVectors128L(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			aead, err := New(tc.key)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
 			}
-			ciphertext := aead.Seal(nil, tc.nonce, tc.plaintext, tc.additionalData)
-			if !bytes.Equal(ciphertext, tc.ciphertext) {
-				t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.ciphertext, ciphertext)
+			var ciphertext []byte
+			if tc.err == nil {
+				ciphertext = aead.Seal(nil, tc.nonce, tc.plaintext, tc.additionalData)
+				if !bytes.Equal(ciphertext, tc.ciphertext) {
+					t.Errorf("%s: expected %#x, got %#x", tc.name, tc.ciphertext, ciphertext)
+				}
 			}
 			plaintext, err := aead.Open(nil, tc.nonce, tc.ciphertext, tc.additionalData)
-			if err != nil {
-				t.Fatalf("%s: %v", tc.name, err)
+			if !errors.Is(err, tc.err) {
+				t.Errorf("expected %v, got %v", tc.err, err)
 			}
 			if !bytes.Equal(plaintext, tc.plaintext) {
-				t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.plaintext, plaintext)
+				t.Errorf("%s: expected %#x, got %#x", tc.name, tc.plaintext, plaintext)
 			}
 		})
 	}
@@ -177,7 +230,7 @@ func TestUpdate256(t *testing.T) {
 		s := tc.before
 		update256(&s, &tc.m)
 		if s != tc.after {
-			t.Fatalf("expected %#x, got %#x", tc.after, s)
+			t.Errorf("expected %#x, got %#x", tc.after, s)
 		}
 	}
 }
@@ -193,52 +246,96 @@ func TestVectors256(t *testing.T) {
 		additionalData []byte
 		plaintext      []byte
 		ciphertext     []byte // ciphertext || tag
+		err            error
 	}{
 		{
 			name:       "A.3.2",
-			key:        unhex("0000000000000000000000000000000000000000000000000000000000000000"),
-			nonce:      unhex("0000000000000000000000000000000000000000000000000000000000000000"),
+			key:        unhex("00000000000000000000000000000000" + "00000000000000000000000000000000"),
+			nonce:      unhex("00000000000000000000000000000000" + "00000000000000000000000000000000"),
 			plaintext:  unhex("00000000000000000000000000000000"),
-			ciphertext: unhex("b98f03a947807713d75a4fff9fc277a6478f3b50dc478ef7d5cf2d0f7cc13180"),
+			ciphertext: unhex("b98f03a947807713d75a4fff9fc277a6" + "478f3b50dc478ef7d5cf2d0f7cc13180"),
 		},
 		{
 			name:       "A.3.3",
-			key:        unhex("0000000000000000000000000000000000000000000000000000000000000000"),
-			nonce:      unhex("0000000000000000000000000000000000000000000000000000000000000000"),
+			key:        unhex("00000000000000000000000000000000" + "00000000000000000000000000000000"),
+			nonce:      unhex("00000000000000000000000000000000" + "00000000000000000000000000000000"),
 			ciphertext: unhex("f7a0878f68bd083e8065354071fc27c3"),
 		},
 		{
 			name:           "A.3.4",
-			key:            unhex("1001000000000000000000000000000000000000000000000000000000000000"),
-			nonce:          unhex("1000020000000000000000000000000000000000000000000000000000000000"),
+			key:            unhex("10010000000000000000000000000000" + "00000000000000000000000000000000"),
+			nonce:          unhex("10000200000000000000000000000000" + "00000000000000000000000000000000"),
 			additionalData: unhex("0001020304050607"),
-			plaintext:      unhex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"),
-			ciphertext:     unhex("f373079ed84b2709faee373584585d60accd191db310ef5d8b11833df9dec7118d86f91ee606e9ff26a01b64ccbdd91d"),
+			plaintext:      unhex("000102030405060708090a0b0c0d0e0f" + "101112131415161718191a1b1c1d1e1f"),
+			ciphertext:     unhex("f373079ed84b2709faee373584585d60" + "accd191db310ef5d8b11833df9dec711" + "8d86f91ee606e9ff26a01b64ccbdd91d"),
 		},
 		{
 			name:           "A.3.5",
-			key:            unhex("1001000000000000000000000000000000000000000000000000000000000000"),
-			nonce:          unhex("1000020000000000000000000000000000000000000000000000000000000000"),
+			key:            unhex("10010000000000000000000000000000" + "00000000000000000000000000000000"),
+			nonce:          unhex("10000200000000000000000000000000" + "00000000000000000000000000000000"),
 			additionalData: unhex("0001020304050607"),
 			plaintext:      unhex("000102030405060708090a0b0c0d"),
 			ciphertext:     unhex("f373079ed84b2709faee37358458c60b9c2d33ceb058f96e6dd03c215652"),
+		},
+		{
+			name:           "A.3.6",
+			key:            unhex("10010000000000000000000000000000" + "00000000000000000000000000000000"),
+			nonce:          unhex("10000200000000000000000000000000" + "00000000000000000000000000000000"),
+			additionalData: unhex("000102030405060708090a0b0c0d0e0f" + "101112131415161718191a1b1c1d1e1f" + "20212223242526272829"),
+			plaintext:      unhex("101112131415161718191a1b1c1d1e1f" + "202122232425262728292a2b2c2d2e2f" + "3031323334353637"),
+			ciphertext:     unhex("57754a7d09963e7c787583a2e7b859bb" + "24fa1e04d49fd550b2511a358e3bca25" + "2a9b1b8b30cc4a67" + "ab8a7d53fd0e98d727accca94925e128"),
+		},
+		{
+			name:           "A.3.7",
+			key:            unhex("10000200000000000000000000000000" + "00000000000000000000000000000000"),
+			nonce:          unhex("10010000000000000000000000000000" + "00000000000000000000000000000000"),
+			additionalData: unhex("0001020304050607"),
+			ciphertext:     unhex("f373079ed84b2709faee37358458" + "c60b9c2d33ceb058f96e6dd03c215652"),
+			err:            errOpen,
+		},
+		{
+			name:           "A.3.8",
+			key:            unhex("10010000000000000000000000000000" + "00000000000000000000000000000000"),
+			nonce:          unhex("10000200000000000000000000000000" + "00000000000000000000000000000000"),
+			additionalData: unhex("0001020304050607"),
+			ciphertext:     unhex("f373079ed84b2709faee37358459" + "c60b9c2d33ceb058f96e6dd03c215652"),
+			err:            errOpen,
+		},
+		{
+			name:           "A.3.9",
+			key:            unhex("10010000000000000000000000000000" + "00000000000000000000000000000000"),
+			nonce:          unhex("10000200000000000000000000000000" + "00000000000000000000000000000000"),
+			additionalData: unhex("0001020304050608"),
+			ciphertext:     unhex("f373079ed84b2709faee37358458" + "c60b9c2d33ceb058f96e6dd03c215652"),
+			err:            errOpen,
+		},
+		{
+			name:           "A.3.10",
+			key:            unhex("10010000000000000000000000000000" + "00000000000000000000000000000000"),
+			nonce:          unhex("10000200000000000000000000000000" + "00000000000000000000000000000000"),
+			additionalData: unhex("0001020304050607"),
+			ciphertext:     unhex("f373079ed84b2709faee37358458" + "d60b9c2d33ceb058f96e6dd03c215653"),
+			err:            errOpen,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			aead, err := New(tc.key)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
 			}
-			ciphertext := aead.Seal(nil, tc.nonce, tc.plaintext, tc.additionalData)
-			if !bytes.Equal(ciphertext, tc.ciphertext) {
-				t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.ciphertext, ciphertext)
+			var ciphertext []byte
+			if tc.err == nil {
+				ciphertext = aead.Seal(nil, tc.nonce, tc.plaintext, tc.additionalData)
+				if !bytes.Equal(ciphertext, tc.ciphertext) {
+					t.Errorf("%s: expected %#x, got %#x", tc.name, tc.ciphertext, ciphertext)
+				}
 			}
 			plaintext, err := aead.Open(nil, tc.nonce, tc.ciphertext, tc.additionalData)
-			if err != nil {
-				t.Fatal(err)
+			if !errors.Is(err, tc.err) {
+				t.Errorf("expected %v, got %v", tc.err, err)
 			}
 			if !bytes.Equal(plaintext, tc.plaintext) {
-				t.Fatalf("%s: expected %#x, got %#x", tc.name, tc.plaintext, plaintext)
+				t.Errorf("%s: expected %#x, got %#x", tc.name, tc.plaintext, plaintext)
 			}
 		})
 	}
@@ -275,14 +372,9 @@ func TestRoundTrip(t *testing.T) {
 func testRoundTrip(t *testing.T, cfg config) {
 	key := make([]byte, cfg.keySize)
 	nonce := make([]byte, cfg.nonceSize)
-	plaintext := make([]byte, cfg.blockSize*50)
-	if _, err := rand.Read(plaintext); err != nil {
-		panic(err)
-	}
-	additionalData := make([]byte, len(plaintext))
-	if _, err := rand.Read(additionalData); err != nil {
-		panic(err)
-	}
+	plaintext := randbuf(cfg.blockSize * 50)
+	additionalData := randbuf(len(plaintext))
+
 	for i := 0; i < len(plaintext); i++ {
 		if _, err := rand.Read(key); err != nil {
 			panic(err)
@@ -295,16 +387,104 @@ func testRoundTrip(t *testing.T, cfg config) {
 
 		aead, err := New(key)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 		ciphertext := aead.Seal(nil, nonce, plaintext, additionalData)
 		got, err := aead.Open(nil, nonce, ciphertext, additionalData)
 		if err != nil {
-			t.Fatalf("%d: %v", i, err)
+			t.Errorf("%d: %v", i, err)
 		}
 		if !bytes.Equal(got, plaintext) {
-			t.Fatalf("%d: expected %#x, got %#x", i, plaintext, got)
+			t.Errorf("%d: expected %#x, got %#x", i, plaintext, got)
 		}
+	}
+}
+
+// TestTampered tests decrypting tampered data.
+func TestTampered(t *testing.T) {
+	t.Run("AEGIS-128L", func(t *testing.T) {
+		testTampered(t, cfg128L)
+	})
+	t.Run("AEGIS-256", func(t *testing.T) {
+		testTampered(t, cfg256)
+	})
+}
+
+func testTampered(t *testing.T, cfg config) {
+	key := make([]byte, cfg.keySize)
+	nonce := make([]byte, cfg.nonceSize)
+	plaintext := randbuf(cfg.blockSize * 50)
+	additionalData := randbuf(len(plaintext))
+	if _, err := rand.Read(key); err != nil {
+		panic(err)
+	}
+	if _, err := rand.Read(nonce); err != nil {
+		panic(err)
+	}
+
+	aead, err := New(key)
+	if err != nil {
+		t.Error(err)
+	}
+	ciphertext := aead.Seal(nil, nonce, plaintext, additionalData)
+
+	// Ciphertext
+	for i := range ciphertext {
+		got, err := aead.Open(nil, nonce, ciphertext, additionalData)
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+		if !bytes.Equal(got, plaintext) {
+			t.Errorf("%d: expected %#x, got %#x", i, plaintext, got)
+		}
+		ciphertext[i]++
+		_, err = aead.Open(nil, nonce, ciphertext, additionalData)
+		if !errors.Is(err, errOpen) {
+			t.Errorf("%d: expected %v, got %v", i, errOpen, err)
+		}
+		ciphertext[i]--
+	}
+
+	// Additional Data
+	for i := range additionalData {
+		got, err := aead.Open(nil, nonce, ciphertext, additionalData)
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+		if !bytes.Equal(got, plaintext) {
+			t.Errorf("%d: expected %#x, got %#x", i, plaintext, got)
+		}
+		additionalData[i]++
+		_, err = aead.Open(nil, nonce, ciphertext, additionalData)
+		if !errors.Is(err, errOpen) {
+			t.Errorf("%d: expected %v, got %v", i, errOpen, err)
+		}
+		additionalData[i]--
+	}
+
+	// Key
+	for i := range key {
+		aead, err := New(key)
+		if err != nil {
+			t.Error(err)
+		}
+		got, err := aead.Open(nil, nonce, ciphertext, additionalData)
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+		if !bytes.Equal(got, plaintext) {
+			t.Errorf("%d: expected %#x, got %#x", i, plaintext, got)
+		}
+		key[i]++
+		aead, err = New(key)
+		if err != nil {
+			t.Error(err)
+		}
+		_, err = aead.Open(nil, nonce, ciphertext, additionalData)
+		if !errors.Is(err, errOpen) {
+			t.Errorf("%d: expected %v, got %v", i, errOpen, err)
+		}
+		key[i]--
 	}
 }
 
@@ -322,10 +502,8 @@ func testInPlace(t *testing.T, cfg config) {
 	key := make([]byte, cfg.keySize)
 	nonce := make([]byte, cfg.nonceSize)
 	plaintext := make([]byte, cfg.blockSize*50)
-	additionalData := make([]byte, len(plaintext))
-	if _, err := rand.Read(additionalData); err != nil {
-		panic(err)
-	}
+	additionalData := randbuf(len(plaintext))
+
 	for i := 0; i < len(plaintext); i++ {
 		if _, err := rand.Read(key); err != nil {
 			panic(err)
@@ -341,16 +519,16 @@ func testInPlace(t *testing.T, cfg config) {
 
 		aead, err := New(key)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 		ciphertext := aead.Seal(plaintext[:0], nonce, plaintext[:i], additionalData)
 		got, err := aead.Open(ciphertext[:0], nonce, ciphertext, additionalData)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 		for i, c := range got {
 			if c != byte(i) {
-				t.Fatalf("bad value at index %d: %#x", i, c)
+				t.Errorf("bad value at index %d: %#x", i, c)
 			}
 		}
 	}
@@ -372,7 +550,7 @@ func TestNew(t *testing.T) {
 	} {
 		_, err := New(make([]byte, tc.size))
 		if tc.ok != (err == nil) {
-			t.Fatalf("unexpected error: %v", err)
+			t.Errorf("unexpected error: %v", err)
 		}
 	}
 }
@@ -462,7 +640,7 @@ func benchmarkOpen(b *testing.B, keySize, nonceSize int, buf []byte) {
 	for i := 0; i < b.N; i++ {
 		_, err := aead.Open(buf[:0], nonce, out, ad)
 		if err != nil {
-			b.Errorf("Open: %v", err)
+			b.Fatalf("Open: %v", err)
 		}
 	}
 }
