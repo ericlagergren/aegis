@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/ericlagergren/aegis/internal/subtle"
+	"github.com/ericlagergren/subtle"
 )
 
 var errOpen = errors.New("aegis: message authentication failure")

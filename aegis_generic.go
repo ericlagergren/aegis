@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"math/bits"
 
-	"github.com/ericlagergren/aegis/internal/subtle"
+	"github.com/ericlagergren/subtle"
 )
 
 type state128L struct {
