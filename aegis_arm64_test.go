@@ -57,6 +57,14 @@ func BenchmarkOpen8K_128LNoSHA3(b *testing.B) {
 	benchmarkOpenNoSHA3(b, KeySize128L, NonceSize128L, make([]byte, 8*1024))
 }
 
+func BenchmarkSeal16K_128LNoSHA3(b *testing.B) {
+	benchmarkSealNoSHA3(b, KeySize128L, NonceSize128L, make([]byte, 16*1024))
+}
+
+func BenchmarkOpen16K_128LNoSHA3(b *testing.B) {
+	benchmarkOpenNoSHA3(b, KeySize128L, NonceSize128L, make([]byte, 16*1024))
+}
+
 func BenchmarkSeal16B_256NoSHA3(b *testing.B) {
 	benchmarkSealNoSHA3(b, KeySize256, NonceSize256, make([]byte, 16))
 }
@@ -79,6 +87,14 @@ func BenchmarkSeal8K_256NoSHA3(b *testing.B) {
 
 func BenchmarkOpen8K_256NoSHA3(b *testing.B) {
 	benchmarkOpenNoSHA3(b, KeySize256, NonceSize256, make([]byte, 8*1024))
+}
+
+func BenchmarkSeal16K_256NoSHA3(b *testing.B) {
+	benchmarkSealNoSHA3(b, KeySize256, NonceSize256, make([]byte, 16*1024))
+}
+
+func BenchmarkOpen16K_256NoSHA3(b *testing.B) {
+	benchmarkOpenNoSHA3(b, KeySize256, NonceSize256, make([]byte, 16*1024))
 }
 
 func benchmarkSealNoSHA3(b *testing.B, keySize, nonceSize int, buf []byte) {
