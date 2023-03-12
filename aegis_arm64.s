@@ -39,9 +39,15 @@
 
 // func copy32(dst, src []byte)
 TEXT ·copy32(SB), NOSPLIT, $0-48
-	MOVD dst_base+0(FP), R8
-	MOVD src_base+24(FP), R1
-	MOVD src_len+32(FP), R3
+	MOVD  dst_base+0(FP), R8
+	MOVD  dst_len+8(FP), R9
+	MOVD  src_base+24(FP), R1
+	MOVD  src_len+32(FP), R3
+	CMP   R3, R9              // Is len(dst) < len(src)?
+	BGE   do_copy             // Nope
+	MOVWU R9, R3              // Yep, set len(src) = len(dst)
+
+do_copy:
 	CALL copy32<>(SB)
 	RET
 
