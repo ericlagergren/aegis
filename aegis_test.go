@@ -571,6 +571,14 @@ func BenchmarkOpen1K_128L(b *testing.B) {
 	benchmarkOpen(b, KeySize128L, NonceSize128L, make([]byte, 1024))
 }
 
+func BenchmarkSeal4K_128L(b *testing.B) {
+	benchmarkSeal(b, KeySize128L, NonceSize128L, make([]byte, 4096))
+}
+
+func BenchmarkOpen4K_128L(b *testing.B) {
+	benchmarkOpen(b, KeySize128L, NonceSize128L, make([]byte, 4096))
+}
+
 func BenchmarkSeal8K_128L(b *testing.B) {
 	benchmarkSeal(b, KeySize128L, NonceSize128L, make([]byte, 8*1024))
 }
@@ -601,6 +609,14 @@ func BenchmarkSeal1K_256(b *testing.B) {
 
 func BenchmarkOpen1K_256(b *testing.B) {
 	benchmarkOpen(b, KeySize256, NonceSize256, make([]byte, 1024))
+}
+
+func BenchmarkSeal4K_256(b *testing.B) {
+	benchmarkSeal(b, KeySize256, NonceSize256, make([]byte, 4096))
+}
+
+func BenchmarkOpen4K_256(b *testing.B) {
+	benchmarkOpen(b, KeySize256, NonceSize256, make([]byte, 4096))
 }
 
 func BenchmarkSeal8K_256(b *testing.B) {
