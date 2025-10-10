@@ -1,7 +1,6 @@
 // Package aegis implements the AEGIS AEAD algorithm.
 //
-//    [aegis]: https://www.ietf.org/archive/id/draft-denis-aegis-aead-00.html
-//
+//	[aegis]: https://www.ietf.org/archive/id/draft-denis-aegis-aead-00.html
 package aegis
 
 import (
